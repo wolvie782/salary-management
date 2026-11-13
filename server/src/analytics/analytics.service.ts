@@ -79,7 +79,7 @@ export class AnalyticsService {
                 SUM(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS total_usd,
                 AVG(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS avg_usd`,
         {
-          extraJoins: 'JOIN Department d ON d.id = e.departmentId',
+          extraJoins: 'JOIN "Department" d ON d.id = e."departmentId"',
           where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`,
           tail: 'GROUP BY d.name ORDER BY total_usd DESC',
         },
@@ -103,7 +103,7 @@ export class AnalyticsService {
                 AVG(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS avg_usd`,
         {
           where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`,
-          tail: 'GROUP BY e.country ORDER BY headcount DESC',
+          tail: 'GROUP BY e.country, s.currency ORDER BY headcount DESC',
         },
       ),
     );

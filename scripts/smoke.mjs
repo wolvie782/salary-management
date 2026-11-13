@@ -91,6 +91,33 @@ try {
     `headcount ${stats.headcount}, paid ${stats.paidHeadcount}, active ${stats.activeCount}`,
   );
 
+  const analytics = await Promise.all(
+    ['by-department', 'by-country', 'distribution', 'top-earners'].map(async (ep) => {
+      const res = await fetch(`http://localhost:${API_PORT}/analytics/${ep}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      return [ep, res.status];
+    }),
+  );
+  check(
+    'every analytics endpoint answers over PostgreSQL',
+    analytics.every(([, status]) => status === 200),
+    analytics.map(([ep, status]) => `${ep} ${status}`).join(', '),
+  );
+
+  const burst = await Promise.all(
+    Array.from({ length: 12 }, () =>
+      fetch(`http://localhost:${API_PORT}/analytics/by-department`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      }),
+    ),
+  );
+  check(
+    'a parallel dashboard burst passes the shared rate limiter',
+    burst.every((res) => res.status === 200),
+    `${burst.filter((res) => res.status === 200).length}/12 ok`,
+  );
+
   const home = await (await fetch(`http://localhost:${WEB_PORT}/`)).text();
   check('web home renders the shell', home.includes('People Pay'));
   const login = await (await fetch(`http://localhost:${WEB_PORT}/login`)).text();

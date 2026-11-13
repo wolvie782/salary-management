@@ -55,6 +55,21 @@ throttle holds across serverless instances, and reran the full test suite
 and smoke test against a real Postgres before committing. Hosting accounts
 and the deploy itself are the engineer's, by his choice.
 
+## Later session: fixes from the first live run
+
+The engineer's first local run against PostgreSQL surfaced three bugs the
+earlier verification missed: two analytics queries used SQL Postgres rejects
+(an unquoted table join and a bare column outside GROUP BY, both tolerated by
+SQLite), and the Postgres-backed rate limiter threw write conflicts when the
+dashboard fired parallel requests, because its serialization-conflict retry
+never matched the driver's error text. The assistant reproduced all three
+over HTTP, added regression tests that fail on the broken code (an analytics
+end to end suite covering every endpoint plus a parallel burst, and a rate
+limiter concurrency spec), then fixed the queries and rebuilt the limiter on
+an atomic upsert plus a row lock. It also corrected the earlier claim that
+the analytics endpoints were verified: the smoke test had only ever called
+the overview endpoint, and it now calls all of them.
+
 ## Why this way
 
 The brief cares about judgment, not typing speed. Using AI for volume work
