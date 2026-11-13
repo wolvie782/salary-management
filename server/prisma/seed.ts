@@ -1,6 +1,7 @@
 // Seed script: loads the deterministic dataset from src/seeding/generator.ts
 // into SQLite. Usage: npm run seed -w server
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import { generateDataset } from '../src/seeding/generator';
 
 const prisma = new PrismaClient();
@@ -11,6 +12,7 @@ async function main() {
   const dataset = generateDataset(10_000, 42);
 
   console.log('Clearing existing data...');
+  await prisma.user.deleteMany();
   await prisma.salaryRecord.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.department.deleteMany();
@@ -72,6 +74,18 @@ async function main() {
   for (let i = 0; i < salaryRows.length; i += CHUNK) {
     await prisma.salaryRecord.createMany({ data: salaryRows.slice(i, i + CHUNK) });
   }
+
+  // Demo HR login. Credentials come from env so a real deployment sets its
+  // own; the defaults exist so a fresh local checkout works out of the box.
+  const hrEmail = (process.env.HR_EMAIL ?? 'hr@acme.example').toLowerCase();
+  const hrPassword = process.env.HR_PASSWORD ?? 'acme-demo-password';
+  await prisma.user.create({
+    data: {
+      email: hrEmail,
+      name: 'ACME HR Manager',
+      passwordHash: await bcrypt.hash(hrPassword, 10),
+    },
+  });
 
   const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
   console.log(`Seed complete in ${seconds}s: 10 departments, ${dataset.employees.length} employees, ${salaryRows.length} salary records, ${dataset.fxRates.length} FX rates.`);

@@ -1,5 +1,19 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+import { clearToken, getToken, redirectToLogin, setToken } from './auth';
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+function handleUnauthorized(res: Response) {
+  if (res.status === 401) {
+    clearToken();
+    redirectToLogin();
+  }
+}
+
 export interface ListParams {
   page?: number;
   pageSize?: number;
@@ -80,7 +94,12 @@ export interface Filters {
 }
 
 async function get<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { ...init, cache: 'no-store' });
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    cache: 'no-store',
+    headers: { ...authHeaders(), ...(init?.headers ?? {}) },
+  });
+  handleUnauthorized(res);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`API ${path} failed: ${res.status} ${body}`);
@@ -91,9 +110,10 @@ async function get<T>(path: string, init?: RequestInit): Promise<T> {
 async function send<T>(path: string, method: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
+  handleUnauthorized(res);
   if (!res.ok) {
     const text = await res.text();
     let message = text;
@@ -106,6 +126,20 @@ async function send<T>(path: string, method: string, body: unknown): Promise<T> 
     throw new Error(message || `Request failed: ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+export async function login(email: string, password: string) {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    throw new Error('Invalid email or password');
+  }
+  const data = (await res.json()) as { accessToken: string; user: { name: string; email: string } };
+  setToken(data.accessToken);
+  return data.user;
 }
 
 export const api = {

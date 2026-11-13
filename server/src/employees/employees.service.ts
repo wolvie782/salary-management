@@ -150,39 +150,62 @@ export class EmployeesService {
       throw new BadRequestException('effectiveFrom must be a valid date');
     }
 
-    const current = await this.prisma.salaryRecord.findFirst({
-      where: { employeeId: id, effectiveTo: null },
-    });
-    if (!current) {
-      throw new ConflictException('Employee has no open salary record to change');
-    }
-    if (effectiveFrom <= current.effectiveFrom) {
-      throw new BadRequestException(
-        'effectiveFrom must be after the current salary start date; use a correction workflow instead',
-      );
-    }
-
     const closesOn = new Date(effectiveFrom.getTime() - 24 * 3600 * 1000);
 
-    const [, created] = await this.prisma.$transaction([
-      this.prisma.salaryRecord.update({
-        where: { id: current.id },
-        data: { effectiveTo: closesOn },
-      }),
-      this.prisma.salaryRecord.create({
-        data: {
-          employeeId: id,
-          amount: dto.amount,
-          currency: employee.currency,
-          effectiveFrom,
-          effectiveTo: null,
-          reason: dto.reason,
-          note: dto.note,
-        },
-      }),
-    ]);
+    // One interactive transaction with a conditional close: the update only
+    // matches while the record is still open, so if two changes race, exactly
+    // one wins and the other rolls back with a 409 instead of leaving two
+    // open records behind.
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const current = await tx.salaryRecord.findFirst({
+          where: { employeeId: id, effectiveTo: null },
+        });
+        if (!current) {
+          throw new ConflictException('Employee has no open salary record to change');
+        }
+        if (effectiveFrom <= current.effectiveFrom) {
+          throw new BadRequestException(
+            'effectiveFrom must be after the current salary start date; use a correction workflow instead',
+          );
+        }
+        const closed = await tx.salaryRecord.updateMany({
+          where: { id: current.id, effectiveTo: null },
+          data: { effectiveTo: closesOn },
+        });
+        if (closed.count !== 1) {
+          throw new ConflictException(
+            'Another salary change was recorded at the same time; refresh and retry',
+          );
+        }
+        await tx.salaryRecord.create({
+          data: {
+            employeeId: id,
+            amount: dto.amount,
+            currency: employee.currency,
+            effectiveFrom,
+            effectiveTo: null,
+            reason: dto.reason,
+            note: dto.note,
+          },
+        });
+      });
+    } catch (err) {
+      if (err instanceof BadRequestException || err instanceof ConflictException) {
+        throw err;
+      }
+      // SQLite reports a losing concurrent writer as a lock error; surface it
+      // as a retryable conflict rather than a 500.
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('locked') || message.includes('P2034')) {
+        throw new ConflictException(
+          'Another salary change was recorded at the same time; refresh and retry',
+        );
+      }
+      throw err;
+    }
 
-    return this.byId(created.employeeId);
+    return this.byId(id);
   }
 
   private async ensureExists(id: number) {

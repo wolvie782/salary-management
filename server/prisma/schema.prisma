@@ -62,3 +62,15 @@ model FxRate {
   usdPerUnit Decimal
   asOf       DateTime
 }
+
+// Single-role access control: the HR manager signs in with email + password,
+// the API issues a JWT, and every route except /health and /auth/login
+// requires it. See docs/architecture.md for the reasoning.
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("HR_MANAGER")
+  createdAt    DateTime @default(now())
+}

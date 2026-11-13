@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
 
 const REASONS = ['PROMOTION', 'ANNUAL_REVIEW', 'MARKET_ADJUSTMENT', 'CORRECTION'];
 
-export function SalaryChangeForm({ employeeId, currency }: { employeeId: number; currency: string }) {
-  const router = useRouter();
+export function SalaryChangeForm({ employeeId, currency, onSaved }: { employeeId: number; currency: string; onSaved: () => void }) {
   const [amount, setAmount] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [reason, setReason] = useState(REASONS[0]);
@@ -29,7 +27,7 @@ export function SalaryChangeForm({ employeeId, currency }: { employeeId: number;
       setAmount('');
       setEffectiveFrom('');
       setNote('');
-      router.refresh();
+      onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {

@@ -173,3 +173,80 @@ describe('EmployeesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('EmployeesService invariants under stress', () => {
+  let dir: string;
+  let prisma: PrismaClient;
+  let service: EmployeesService;
+  let employeeId: number;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'salary-race-'));
+    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
+    execSync('npx prisma db push --skip-generate', {
+      cwd: join(__dirname, '..', '..'),
+      env: { ...process.env },
+      stdio: 'ignore',
+    });
+    prisma = new PrismaClient();
+    service = new EmployeesService(prisma as PrismaService);
+    const dept = await prisma.department.create({ data: { name: 'Engineering' } });
+    const employee = await prisma.employee.create({
+      data: {
+        employeeCode: 'ACME-000001',
+        firstName: 'Race',
+        lastName: 'Test',
+        email: 'race@acme.example',
+        jobTitle: 'Engineer',
+        employmentType: 'FULL_TIME',
+        status: 'ACTIVE',
+        country: 'IN',
+        currency: 'INR',
+        hireDate: new Date('2020-01-01'),
+        departmentId: dept.id,
+        salaries: {
+          create: {
+            amount: 1_000_000,
+            currency: 'INR',
+            effectiveFrom: new Date('2020-01-01'),
+            reason: 'HIRE',
+          },
+        },
+      },
+    });
+    employeeId = employee.id;
+  }, 60_000);
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('keeps exactly one open record when two changes race with the same date', async () => {
+    const change = {
+      amount: 1_200_000,
+      effectiveFrom: '2026-11-10',
+      reason: 'ANNUAL_REVIEW',
+    } as any;
+    const results = await Promise.allSettled([
+      service.addSalaryChange(employeeId, change),
+      service.addSalaryChange(employeeId, change),
+    ]);
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled');
+    expect(succeeded.length).toBeLessThanOrEqual(1);
+
+    const open = await prisma.salaryRecord.count({
+      where: { employeeId, effectiveTo: null },
+    });
+    expect(open).toBe(1);
+
+    const all = await prisma.salaryRecord.findMany({ where: { employeeId } });
+    const sorted = [...all].sort(
+      (a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime(),
+    );
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i - 1].effectiveTo).not.toBeNull();
+    }
+  });
+});

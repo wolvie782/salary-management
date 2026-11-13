@@ -1,21 +1,48 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { api } from '../../../lib/api';
+import { useParams } from 'next/navigation';
+import { api, EmployeeDetail } from '../../../lib/api';
 import { formatDate, formatMoney } from '../../../lib/format';
 import { SalaryChangeForm } from './SalaryChangeForm';
 import { StatusBadge } from '../../../components/StatusBadge';
 
-export const dynamic = 'force-dynamic';
-
-export default async function EmployeePage({ params }: { params: { id: string } }) {
+export default function EmployeePage() {
+  const params = useParams<{ id: string }>();
   const id = Number(params.id);
-  if (!Number.isInteger(id)) notFound();
+  const [employee, setEmployee] = useState<EmployeeDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  let employee;
-  try {
-    employee = await api.employee(id);
-  } catch {
-    notFound();
+  const load = useCallback(() => {
+    if (!Number.isInteger(id)) {
+      setError('Invalid employee id');
+      return;
+    }
+    api
+      .employee(id)
+      .then(setEmployee)
+      .catch(() => setError('Employee not found'));
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (error) {
+    return (
+      <main className="mx-auto max-w-4xl px-6 py-8">
+        <Link href="/employees" className="text-sm text-indigo-600 hover:underline">
+          &larr; All employees
+        </Link>
+        <p role="alert" className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      </main>
+    );
+  }
+  if (!employee) {
+    return <main className="mx-auto max-w-4xl px-6 py-8 text-sm text-slate-500">Loading...</main>;
   }
 
   const current = employee.salaryHistory.find((s) => s.effectiveTo === null);
@@ -26,7 +53,7 @@ export default async function EmployeePage({ params }: { params: { id: string } 
         &larr; All employees
       </Link>
 
-      <div className="mt-3 flex items-start justify-between">
+      <div className="mt-3 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">
             {employee.firstName} {employee.lastName}
@@ -69,46 +96,48 @@ export default async function EmployeePage({ params }: { params: { id: string } 
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 font-medium">Record a salary change</h2>
-        <SalaryChangeForm employeeId={employee.id} currency={employee.currency} />
+        <SalaryChangeForm employeeId={employee.id} currency={employee.currency} onSaved={load} />
       </section>
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 font-medium">Salary history</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-slate-500">
-              <th className="py-2 font-medium">Period</th>
-              <th className="py-2 font-medium">Reason</th>
-              <th className="py-2 text-right font-medium">Amount</th>
-              <th className="py-2 text-right font-medium">Change</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employee.salaryHistory.map((s, i) => {
-              const previous = employee.salaryHistory[i + 1];
-              const delta = previous ? (s.amount - previous.amount) / previous.amount : null;
-              return (
-                <tr key={s.id} className="border-b last:border-0">
-                  <td className="py-2">
-                    {formatDate(s.effectiveFrom)} &rarr; {formatDate(s.effectiveTo)}
-                  </td>
-                  <td className="py-2">{s.reason.replace(/_/g, ' ').toLowerCase()}</td>
-                  <td className="py-2 text-right">{formatMoney(s.amount, s.currency)}</td>
-                  <td className="py-2 text-right">
-                    {delta === null ? (
-                      <span className="text-slate-400">-</span>
-                    ) : (
-                      <span className={delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                        {delta >= 0 ? '+' : ''}
-                        {(delta * 100).toFixed(1)}%
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead>
+              <tr className="border-b text-left text-slate-500">
+                <th scope="col" className="py-2 font-medium">Period</th>
+                <th scope="col" className="py-2 font-medium">Reason</th>
+                <th scope="col" className="py-2 text-right font-medium">Amount</th>
+                <th scope="col" className="py-2 text-right font-medium">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employee.salaryHistory.map((s, i) => {
+                const previous = employee.salaryHistory[i + 1];
+                const delta = previous ? (s.amount - previous.amount) / previous.amount : null;
+                return (
+                  <tr key={s.id} className="border-b last:border-0">
+                    <td className="py-2">
+                      {formatDate(s.effectiveFrom)} &rarr; {formatDate(s.effectiveTo)}
+                    </td>
+                    <td className="py-2">{s.reason.replace(/_/g, ' ').toLowerCase()}</td>
+                    <td className="py-2 text-right">{formatMoney(s.amount, s.currency)}</td>
+                    <td className="py-2 text-right">
+                      {delta === null ? (
+                        <span className="text-slate-400">-</span>
+                      ) : (
+                        <span className={delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                          {delta >= 0 ? '+' : ''}
+                          {(delta * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
   );

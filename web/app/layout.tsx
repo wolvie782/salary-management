@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Nav } from '../components/Nav';
+import { AuthGate } from '../components/AuthGate';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Nav />
-        {children}
+        <AuthGate>{children}</AuthGate>
       </body>
     </html>
   );

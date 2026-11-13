@@ -119,17 +119,17 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-slate-500">
-              <th className="px-4 py-3 font-medium">Employee</th>
-              <th className="px-4 py-3 font-medium">Code</th>
-              <th className="px-4 py-3 font-medium">Title</th>
-              <th className="px-4 py-3 font-medium">Department</th>
-              <th className="px-4 py-3 font-medium">Country</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Salary</th>
+              <th scope="col" className="px-4 py-3 font-medium">Employee</th>
+              <th scope="col" className="px-4 py-3 font-medium">Code</th>
+              <th scope="col" className="px-4 py-3 font-medium">Title</th>
+              <th scope="col" className="px-4 py-3 font-medium">Department</th>
+              <th scope="col" className="px-4 py-3 font-medium">Country</th>
+              <th scope="col" className="px-4 py-3 font-medium">Status</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Salary</th>
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>

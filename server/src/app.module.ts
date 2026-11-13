@@ -6,11 +6,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { EmployeesModule } from './employees/employees.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MetaModule } from './meta/meta.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     PrismaModule,
+    AuthModule,
     EmployeesModule,
     AnalyticsModule,
     MetaModule,
