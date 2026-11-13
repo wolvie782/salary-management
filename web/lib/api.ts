@@ -161,4 +161,15 @@ export const api = {
   distribution: () => get<{ widthUsd: number; capUsd: number; buckets: { label: string; min: number; max: number | null; count: number }[] }>('/analytics/distribution'),
   topEarners: (limit = 10) => get<{ id: number; name: string; jobTitle: string; country: string; amount: number; currency: string; usd: number }[]>(`/analytics/top-earners?limit=${limit}`),
   filters: () => get<Filters>('/meta/filters'),
+  auditLog: (limit = 200) => get<AuditLogEntry[]>(`/audit?limit=${limit}`),
 };
+
+export interface AuditLogEntry {
+  id: number;
+  action: string;
+  entityType: string;
+  entityId: number;
+  details: Record<string, unknown>;
+  performedBy: string;
+  createdAt: string;
+}

@@ -78,6 +78,19 @@ model User {
   createdAt    DateTime @default(now())
 }
 
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  action      String   // EMPLOYEE_CREATED | PROFILE_UPDATED | SALARY_CHANGED
+  entityType  String   // EMPLOYEE | SALARY_RECORD
+  entityId    Int
+  details     Json
+  performedBy String
+  createdAt   DateTime @default(now())
+
+  @@index([entityId, entityType])
+  @@index([createdAt])
+}
+
 // Rate limiting counters, shared by every running instance through the
 // database, so the login throttle holds on serverless deployments too.
 model ThrottleRecord {

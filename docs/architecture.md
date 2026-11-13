@@ -19,8 +19,9 @@ Two deployable units in one npm-workspaces monorepo:
 
 - `server/` - NestJS (Node + TypeScript) REST API. Prisma ORM over
   PostgreSQL (local Docker in dev, Neon in the hosted demo).
-  Modules: `employees` (directory, profiles, salary changes), `analytics`
-  (pay questions), `meta` (filter options), `prisma` (shared client).
+  Modules: `auth` (JWT sign-in, global guard), `employees` (directory,
+  profiles, salary changes, CSV export), `analytics` (pay questions),
+  `audit` (change log), `meta` (filter options), `prisma` (shared client).
 - `web/` - Next.js (React + TypeScript) UI. The dashboard and employee pages
   are server rendered and fetch from the API; interactive pieces (charts,
   filters, forms) are client components. Tailwind for styling, Recharts for
@@ -33,6 +34,7 @@ erDiagram
     Department ||--o{ Employee : has
     Employee ||--o{ SalaryRecord : "history"
     FxRate ||--|| SalaryRecord : "currency lookup"
+    Employee ||--o{ AuditLog : "audit trail"
     Employee {
         int id PK
         string employeeCode UK
@@ -56,6 +58,20 @@ erDiagram
         decimal usdPerUnit
         date asOf
     }
+    AuditLog {
+        int id PK
+        string action
+        string entityType
+        int entityId
+        json details
+        string performedBy
+        datetime createdAt
+    }
+    ThrottleRecord {
+        string key PK
+        int count
+        datetime expiresAt
+    }
 ```
 
 The key decision: **salary is an append-only timeline**. A change closes the
@@ -64,7 +80,17 @@ History can never be overwritten, which is what makes audit questions ("what
 did we pay this person last March?") answerable and what makes the timeline
 safe against partial failures.
 
-## Request flow example: record a raise
+**AuditLog** records every mutation to employees and salary records: who did
+it (`performedBy`, the JWT email), what changed (`details` JSON), and when.
+It is indexed on `[entityId, entityType]` for per-employee queries and on
+`[createdAt]` for the timeline view.
+
+**ThrottleRecord** backs the Postgres-based rate limiter. Storing counters in
+Postgres (rather than memory) means limits hold across serverless function
+instances. The login route is capped at 10 req/min; all other routes at
+300 req/min.
+
+## Request flow example 1: record a raise
 
 1. `POST /employees/:id/salary-changes` hits NestJS; the global guard checks
    the Bearer JWT before any handler runs.
@@ -73,7 +99,28 @@ safe against partial failures.
 3. `EmployeesService.addSalaryChange` loads the open salary record, rejects
    dates that would rewrite the past, then closes the old record and inserts
    the new one inside `prisma.$transaction`.
-4. The UI re-fetches the employee and the history table shows the new row.
+4. Fire-and-forget audit: `audit.log({ action: 'SALARY_CHANGED', … }).catch(() => undefined)`.
+5. The UI re-fetches the employee and the history table shows the new row.
+
+## Request flow example 2: audit log write
+
+Every mutating employees route threads `req.user.email` from the JWT all the
+way to the database:
+
+1. `JwtAuthGuard` validates the Bearer token and attaches the decoded payload
+   (`email`, `sub`) to `req.user`.
+2. The controller method extracts `req.user?.email ?? 'unknown'` and passes it
+   as `performedBy` to the service method.
+3. The service completes its main Prisma write (create / update / salary change).
+4. It then calls `this.audit.log({ action, entityType, entityId, details, performedBy })`.
+   This call is **fire-and-forget**: `.catch(() => undefined)` swallows any
+   audit write error. The employee mutation has already committed; audit
+   failure must never roll it back or surface a 500 to the client.
+5. `AuditService.log()` calls `prisma.auditLog.create()`. The entry lands in
+   the `AuditLog` table with a server-side `createdAt`.
+6. `GET /audit` returns entries ordered by `createdAt desc`; the web UI renders
+   them as a timeline with human-readable labels, relative timestamps, and a
+   performer pill showing the email.
 
 ## Security posture
 

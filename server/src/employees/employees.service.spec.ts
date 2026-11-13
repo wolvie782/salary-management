@@ -24,7 +24,10 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { PrismaClient } from '@prisma/client';
 import { generateDataset } from '../seeding/generator';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { EmployeesService } from './employees.service';
+
+const noopAudit = { log: () => Promise.resolve(null as any), list: () => Promise.resolve([]) } as unknown as AuditService;
 
 describe('EmployeesService', () => {
   let prisma: PrismaClient;
@@ -35,7 +38,7 @@ describe('EmployeesService', () => {
     await useTestSchema('employees');
 
     prisma = new PrismaService();
-    service = new EmployeesService(prisma as PrismaService);
+    service = new EmployeesService(prisma as PrismaService, noopAudit);
 
     const dataset = generateDataset(120, 99);
     await prisma.department.createMany({ data: dataset.departments.map((name) => ({ name })) });
@@ -189,7 +192,7 @@ describe('EmployeesService invariants under stress', () => {
   beforeAll(async () => {
     await useTestSchema('employees_race');
     prisma = new PrismaClient();
-    service = new EmployeesService(prisma as PrismaService);
+    service = new EmployeesService(prisma as PrismaService, noopAudit);
     const dept = await prisma.department.create({ data: { name: 'Engineering' } });
     const employee = await prisma.employee.create({
       data: {

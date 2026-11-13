@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   CreateEmployeeDto,
   CreateSalaryChangeDto,
@@ -22,7 +23,10 @@ const currentSalary = {
 
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(query: ListEmployeesQuery) {
     const { page = 1, pageSize = 25, search, department, country, status, employmentType, sortBy = 'employeeCode', sortDir = 'asc' } = query;
@@ -61,6 +65,56 @@ export class EmployeesService {
     };
   }
 
+  async export(query: ListEmployeesQuery): Promise<string> {
+    const { search, department, country, status, employmentType } = query;
+    const where: Prisma.EmployeeWhereInput = {};
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { employeeCode: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (department) where.department = { name: department };
+    if (country) where.country = country;
+    if (status) where.status = status;
+    if (employmentType) where.employmentType = employmentType;
+
+    const rows = await this.prisma.employee.findMany({
+      where,
+      include: { department: { select: { name: true } }, ...currentSalary },
+      orderBy: { employeeCode: 'asc' },
+    });
+
+    const esc = (v: string | null | undefined) => {
+      const s = v == null ? '' : String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
+    };
+
+    const header = 'Employee Code,First Name,Last Name,Email,Job Title,Department,Country,Employment Type,Status,Hire Date,Current Salary,Currency';
+    const lines = rows.map((e) => {
+      const salary = e.salaries[0];
+      return [
+        esc(e.employeeCode),
+        esc(e.firstName),
+        esc(e.lastName),
+        esc(e.email),
+        esc(e.jobTitle),
+        esc(e.department.name),
+        esc(e.country),
+        esc(e.employmentType),
+        esc(e.status),
+        esc(e.hireDate.toISOString().slice(0, 10)),
+        salary ? String(Number(salary.amount)) : '',
+        salary ? esc(salary.currency) : '',
+      ].join(',');
+    });
+    return [header, ...lines].join('\n');
+  }
+
   async byId(id: number) {
     const employee = await this.prisma.employee.findUnique({
       where: { id },
@@ -73,7 +127,7 @@ export class EmployeesService {
     return this.toDetail(employee);
   }
 
-  async create(dto: CreateEmployeeDto) {
+  async create(dto: CreateEmployeeDto, performedBy = 'system') {
     const existing = await this.prisma.employee.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException(`Email ${dto.email} is already in use`);
 
@@ -111,10 +165,12 @@ export class EmployeesService {
         salaries: { orderBy: { effectiveFrom: 'desc' } },
       },
     });
+    // fire-and-forget: audit failure must not fail the create
+    this.audit.log({ action: 'EMPLOYEE_CREATED', entityType: 'EMPLOYEE', entityId: employee.id, details: { firstName: dto.firstName, lastName: dto.lastName, email: dto.email, jobTitle: dto.jobTitle }, performedBy }).catch(() => undefined);
     return this.toDetail(employee);
   }
 
-  async update(id: number, dto: UpdateEmployeeDto) {
+  async update(id: number, dto: UpdateEmployeeDto, performedBy = 'system') {
     await this.ensureExists(id);
     if (dto.email) {
       const clash = await this.prisma.employee.findFirst({
@@ -134,6 +190,7 @@ export class EmployeesService {
         salaries: { orderBy: { effectiveFrom: 'desc' } },
       },
     });
+    this.audit.log({ action: 'PROFILE_UPDATED', entityType: 'EMPLOYEE', entityId: id, details: dto as object, performedBy }).catch(() => undefined);
     return this.toDetail(employee);
   }
 
@@ -141,7 +198,7 @@ export class EmployeesService {
   // closes the day before the new one takes effect, and the new record is
   // open ended. Runs in a transaction so the timeline can never be left
   // half updated.
-  async addSalaryChange(id: number, dto: CreateSalaryChangeDto) {
+  async addSalaryChange(id: number, dto: CreateSalaryChangeDto, performedBy = 'system') {
     const employee = await this.prisma.employee.findUnique({ where: { id } });
     if (!employee) throw new NotFoundException(`Employee ${id} not found`);
 
@@ -205,6 +262,7 @@ export class EmployeesService {
       throw err;
     }
 
+    this.audit.log({ action: 'SALARY_CHANGED', entityType: 'SALARY_RECORD', entityId: id, details: { amount: dto.amount, reason: dto.reason, effectiveFrom: dto.effectiveFrom }, performedBy }).catch(() => undefined);
     return this.byId(id);
   }
 

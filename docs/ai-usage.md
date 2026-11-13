@@ -70,6 +70,30 @@ an atomic upsert plus a row lock. It also corrected the earlier claim that
 the analytics endpoints were verified: the smoke test had only ever called
 the overview endpoint, and it now calls all of them.
 
+## Later session: UI expansion and new features
+
+A further session added audit logging, CSV export/import, an HR Assistant
+page, inline profile editing, and status change controls. The assistant also
+ran a design critique pass (via /design skill) and improved visual hierarchy
+across all pages: KPI cards with colored accent bars, section dividers, ghost
+buttons, tabular-nums typography, and a custom scrollbar.
+
+Specific bugs caught and fixed in this session:
+- CSV export fetched only 100 records because the client called the paginated
+  list endpoint with pageSize=10000, which the DTO's @Max(100) validator
+  silently truncated. Fixed by adding a dedicated /employees/export backend
+  endpoint with no pagination.
+- Audit log showed "by system" because the service hardcoded performedBy.
+  Fixed by threading req.user.email from the JWT through the controller into
+  every service method.
+- The filter dropdown on the audit page used a native macOS <select> element,
+  which renders with an indented dark popup that ignores Tailwind classes.
+  Fixed by replacing with the custom Select component.
+- The salary distribution chart had illegible overlapping x-axis labels
+  ($30k-$40k is too long at -45° with 26 buckets). Fixed with a
+  shortDistLabel formatter, interval={1} to skip alternating ticks, -55°
+  angle, and extra bottom margin.
+
 ## Why this way
 
 The brief cares about judgment, not typing speed. Using AI for volume work

@@ -10,6 +10,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MetaModule } from './meta/meta.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
     }),
     PrismaModule,
     AuthModule,
+    AuditModule,
     EmployeesModule,
     AnalyticsModule,
     MetaModule,

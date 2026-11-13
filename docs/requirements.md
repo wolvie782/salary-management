@@ -31,6 +31,24 @@ One persona: the HR Manager of ACME (internal operations user, desktop first).
    snapshot date is documented.
 7. Seed script. Deterministic, realistic dataset of 10,000 employees across
    countries and departments, each with salary history.
+8. Audit log. Every employee create, profile update, status change, and salary
+   change is recorded with the action type, the changed data, and the email of
+   the HR user who performed it. Viewable from the Audit Log page, filterable
+   by action type.
+9. CSV export. Download the full employee directory (all filters applied) as a
+   CSV with no record cap. Backend endpoint `GET /employees/export` bypasses
+   the paginated list's @Max(100) pageSize constraint.
+10. CSV import. Upload a CSV, preview up to 5 rows, then import row by row with
+    a live progress bar and error list. Column aliases accepted (firstName/
+    first_name, hireDate/hire_date, etc.).
+11. HR Assistant. Rule-based intent router that answers natural-language
+    questions about payroll by routing to the analytics APIs. Labeled "Coming
+    Soon" for the full LLM-powered version; the architecture is wired for a
+    one-line swap.
+12. Inline profile editing and status changes. HR can edit any profile field
+    (name, email, job title, department, employment type) directly on the
+    employee detail page without navigating away. Status can be changed
+    instantly from a dropdown.
 
 ## Deliberately out of scope, and why
 

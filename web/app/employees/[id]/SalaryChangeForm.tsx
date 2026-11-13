@@ -2,21 +2,38 @@
 
 import { useState } from 'react';
 import { api } from '../../../lib/api';
+import { Select } from '../../../components/Select';
 
 const REASONS = ['PROMOTION', 'ANNUAL_REVIEW', 'MARKET_ADJUSTMENT', 'CORRECTION'];
 
-export function SalaryChangeForm({ employeeId, currency, onSaved }: { employeeId: number; currency: string; onSaved: () => void }) {
+const REASON_LABELS: Record<string, string> = {
+  PROMOTION: 'Promotion',
+  ANNUAL_REVIEW: 'Annual Review',
+  MARKET_ADJUSTMENT: 'Market Adjustment',
+  CORRECTION: 'Correction',
+};
+
+export function SalaryChangeForm({ employeeId, currency, onSaved }: {
+  employeeId: number;
+  currency: string;
+  onSaved: () => void;
+}) {
   const [amount, setAmount] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [reason, setReason] = useState(REASONS[0]);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const inputClass =
+    'w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition';
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setSaved(false);
     try {
       await api.addSalaryChange(employeeId, {
         amount: Number(amount),
@@ -27,6 +44,8 @@ export function SalaryChangeForm({ employeeId, currency, onSaved }: { employeeId
       setAmount('');
       setEffectiveFrom('');
       setNote('');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 4000);
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
@@ -36,62 +55,71 @@ export function SalaryChangeForm({ employeeId, currency, onSaved }: { employeeId
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 md:grid-cols-5">
-      <label className="text-sm">
-        <span className="mb-1 block text-slate-500">New annual salary ({currency})</span>
-        <input
-          required
-          type="number"
-          min="1"
-          step="any"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-        />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-slate-500">Effective from</span>
-        <input
-          required
-          type="date"
-          value={effectiveFrom}
-          onChange={(e) => setEffectiveFrom(e.target.value)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-        />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-slate-500">Reason</span>
-        <select
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2"
-        >
-          {REASONS.map((r) => (
-            <option key={r} value={r}>{r.replace(/_/g, ' ').toLowerCase()}</option>
-          ))}
-        </select>
-      </label>
-      <label className="text-sm md:col-span-1">
-        <span className="mb-1 block text-slate-500">Note (optional)</span>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={500}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-        />
-      </label>
-      <div className="flex items-end">
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-slate-600">New Annual Salary ({currency})</span>
+          <input
+            required
+            type="number"
+            min="1"
+            step="any"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="e.g. 1200000"
+            className={inputClass}
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-slate-600">Effective From</span>
+          <input
+            required
+            type="date"
+            value={effectiveFrom}
+            onChange={(e) => setEffectiveFrom(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-slate-600">Reason</span>
+          <Select
+            value={reason}
+            onChange={setReason}
+            options={REASONS.map((r) => ({ value: r, label: REASON_LABELS[r] ?? r }))}
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-slate-600">Note <span className="text-slate-400 font-normal">(optional)</span></span>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={500}
+            placeholder="e.g. Promoted to senior level"
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
-          {saving ? 'Saving...' : 'Save change'}
+          {saving ? 'Saving…' : 'Record Change'}
         </button>
+        {saved && (
+          <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+              <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+            </svg>
+            Salary change recorded
+          </span>
+        )}
+        {error && (
+          <span className="text-sm text-red-600">{error}</span>
+        )}
       </div>
-      {error && (
-        <p className="text-sm text-red-600 md:col-span-5">{error}</p>
-      )}
     </form>
   );
 }
