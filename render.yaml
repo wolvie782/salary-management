@@ -1,0 +1,17 @@
+# Render blueprint for the API. The Next.js web app deploys separately
+# (Vercel, root directory: web). See docs/deployment.md.
+services:
+  - type: web
+    name: acme-salary-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npx prisma migrate deploy && npm run seed && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: WEB_ORIGIN
+        sync: false # set to the deployed web URL
+      - key: NODE_VERSION
+        value: 22
