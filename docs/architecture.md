@@ -91,8 +91,10 @@ requires a JWT on every route except `/health` and `/auth/login`.
   the salary change runs in a transaction with a conditional close so two
   simultaneous raises cannot both win (see the race test).
 - All database access is parameterized (Prisma, or static SQL for analytics).
-- helmet security headers, 300 req/min rate limiting, CORS restricted to the
-  web origin.
+- helmet security headers, 300 req/min global rate limiting with a stricter
+  10 req/min limit on login, CORS restricted to the web origin.
+- JWTs are signed with JWT_SECRET; the API refuses to boot in production
+  without it, so a deployment can never silently use the public dev default.
 - Deliberately not built: SSO, multiple roles, row level permissions. One
   persona means one role; see docs/requirements.md.
 
