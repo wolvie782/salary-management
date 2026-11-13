@@ -8,8 +8,10 @@ multi-country organization and answer questions about how the org pays people.
 - Salary changes that preserve history (append-only timeline)
 - Dashboard: payroll by department, average salary by country, distribution,
   top earners, all normalized to USD
+- Sign in required for everything: one HR account, bcrypt + JWT
 - NestJS + Prisma + SQLite API, Next.js + Tailwind + Recharts UI
-- Fast, deterministic tests over the core salary logic
+- Fast, deterministic tests over the core salary logic, including a
+  concurrency test for simultaneous raises
 
 ## Docs
 
@@ -40,6 +42,10 @@ npm run dev:server
 cp web/.env.example web/.env.local
 npm run dev:web
 ```
+
+Sign in with the local demo account `hr@acme.example` /
+`acme-demo-password` (set your own via `HR_EMAIL` / `HR_PASSWORD` /
+`JWT_SECRET` in any real deployment).
 
 Run the tests:
 

@@ -20,22 +20,28 @@ One persona: the HR Manager of ACME (internal operations user, desktop first).
 3. Salary changes. Record a compensation change (amount, currency, effective
    date, reason). History is preserved; old records are closed, never
    overwritten or deleted.
-4. Add and edit employees.
-5. Compensation analytics. Headcount, total and average annual payroll,
+4. Sign in and access control. Salary data is sensitive: every API route and
+   page except the login screen requires authentication. One HR Manager
+   account, credentials from environment variables, bcrypt password hashing,
+   JWT sessions.
+5. Add and edit employees.
+6. Compensation analytics. Headcount, total and average annual payroll,
    breakdowns by department and by country, salary distribution, top earners.
    Multi-country amounts are normalized to USD with a static FX table whose
    snapshot date is documented.
-6. Seed script. Deterministic, realistic dataset of 10,000 employees across
+7. Seed script. Deterministic, realistic dataset of 10,000 employees across
    countries and departments, each with salary history.
 
 ## Deliberately out of scope, and why
 
-- Authentication and authorization. This is a single-role internal tool that
-  in a real deployment sits behind company SSO and the office network. Login
-  screens would add surface area without showing anything about the salary
-  domain. The security work that does matter here (input validation,
-  parameterized queries, rate limiting, security headers, no secrets in the
-  repo) is in scope.
+- Single sign on and role based access control beyond one role. The app has
+  exactly one persona, so it ships with a real but minimal sign in: one HR
+  account, email plus password, JWT session, every route protected. Company
+  SSO, multiple roles (manager, finance, auditor) and permission levels are
+  the deliberate exclusions: they add surface area without showing anything
+  more about the salary domain. What is NOT excluded: input validation,
+  parameterized queries, rate limiting, security headers, password hashing,
+  and no secrets in the repo.
 - Payroll execution: payslips, bank transfers, tax withholding. That is a
   payments and compliance domain with its own rules per country. This tool is
   about managing and understanding salary data, not moving money.

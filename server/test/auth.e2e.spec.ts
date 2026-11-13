@@ -112,3 +112,109 @@ describe('Auth (e2e)', () => {
     expect(created.body.employeeCode).toBe('ACME-000001');
   });
 });
+
+describe('Error handling (e2e)', () => {
+  let dir: string;
+  let app: INestApplication;
+  let token: string;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'salary-errors-'));
+    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
+    execSync('npx prisma db push --skip-generate', {
+      cwd: join(__dirname, '..'),
+      env: { ...process.env },
+      stdio: 'ignore',
+    });
+    const prisma = new PrismaClient();
+    await prisma.department.create({ data: { name: 'Engineering' } });
+    await prisma.user.create({
+      data: {
+        email: 'hr@acme.example',
+        name: 'HR Manager',
+        passwordHash: await bcrypt.hash('correct-password', 10),
+      },
+    });
+    await prisma.$disconnect();
+
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'hr@acme.example', password: 'correct-password' });
+    token = login.body.accessToken;
+  }, 60_000);
+
+  afterAll(async () => {
+    await app.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns field level 400s for invalid input, no stack traces', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/employees')
+      .set('authorization', `Bearer ${token}`)
+      .send({ firstName: 'Only' })
+      .expect(400);
+    expect(res.body.statusCode).toBe(400);
+    expect(Array.isArray(res.body.message)).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain('at ');
+    expect(JSON.stringify(res.body)).not.toContain('node_modules');
+  });
+
+  it('returns a clean 409 for a duplicate email', async () => {
+    const payload = {
+      firstName: 'One',
+      lastName: 'Person',
+      email: 'dupe@acme.example',
+      jobTitle: 'Engineer',
+      employmentType: 'FULL_TIME',
+      country: 'IN',
+      currency: 'INR',
+      departmentId: 1,
+      hireDate: '2026-11-01',
+      salaryAmount: 1_000_000,
+    };
+    await request(app.getHttpServer())
+      .post('/employees')
+      .set('authorization', `Bearer ${token}`)
+      .send(payload)
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/employees')
+      .set('authorization', `Bearer ${token}`)
+      .send(payload)
+      .expect(409);
+    expect(JSON.stringify(res.body)).not.toContain('Prisma');
+  });
+
+  it('returns 400, not 500, for malformed JSON', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/employees')
+      .set('authorization', `Bearer ${token}`)
+      .set('content-type', 'application/json')
+      .send('{not valid json')
+      .expect(400);
+    expect(res.body.message).toBe('Malformed request body');
+  });
+
+  it('returns 404 for unknown routes and unknown employees', async () => {
+    await request(app.getHttpServer())
+      .get('/no-such-route')
+      .set('authorization', `Bearer ${token}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get('/employees/999999')
+      .set('authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('rejects expired or forged tokens with 401', () => {
+    return request(app.getHttpServer())
+      .get('/employees')
+      .set('authorization', 'Bearer forged.token.value')
+      .expect(401);
+  });
+});

@@ -4,14 +4,18 @@ Target: HR operations over 10,000 employees feel instant on ordinary hardware.
 
 ## What we measured locally
 
+Development machine, seeded SQLite file:
+
 - Seed: 10,000 employees + 38,804 salary records insert in about 1.5s.
-- Jest suite: about 3s end to end, deterministic.
+- Test suite: 28 tests in about 5s, deterministic.
 - Directory list: paged queries (`LIMIT/OFFSET` with a separate `COUNT`) over
-  indexed columns; page of 25 returns in single-digit milliseconds against
-  the seeded SQLite file.
+  indexed columns; page of 25 returns in single-digit milliseconds.
 - Analytics: each dashboard endpoint is one grouped SQL query. Median and
   distribution read ~10k ordered floats once; still single-digit
   milliseconds.
+
+These are local development numbers, not load test results. Nothing here has
+been measured under concurrent production traffic.
 
 ## Where the time goes at 10k rows, and the levers
 
@@ -34,6 +38,17 @@ Target: HR operations over 10,000 employees feel instant on ordinary hardware.
 - Rate limiting (300 req/min) keeps a stuck client from degrading the API.
 - Tests run against a 120-row throwaway database so the suite stays fast
   enough to run on every commit.
+
+## Known limits, tested boundaries
+
+- Tested with 10,000 employees / 38,804 salary records, the brief's target.
+  Not load tested beyond that; the scaling levers below are reasoned, not
+  measured.
+- Integration tests use a 120 row throwaway database; they verify behavior
+  and invariants, not query plans at scale.
+- UI is verified by rendered screenshots on desktop and mobile widths, and
+  by the automated build; there is no browser automation suite (see
+  docs/ai-usage.md for what was checked by eye).
 
 ## What would change at 100k+ employees
 

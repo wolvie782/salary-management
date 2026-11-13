@@ -65,7 +65,8 @@ safe against partial failures.
 
 ## Request flow example: record a raise
 
-1. `POST /employees/:id/salary-changes` hits NestJS.
+1. `POST /employees/:id/salary-changes` hits NestJS; the global guard checks
+   the Bearer JWT before any handler runs.
 2. `CreateSalaryChangeDto` validates shape, ranges and enums (class-validator,
    global ValidationPipe with `whitelist: true` strips unknown fields).
 3. `EmployeesService.addSalaryChange` loads the open salary record, rejects
@@ -75,15 +76,25 @@ safe against partial failures.
 
 ## Security posture
 
-Authentication is deliberately out of scope (see docs/requirements.md). What
-is in scope:
+Salary data is sensitive, so the default is closed: a global auth guard
+requires a JWT on every route except `/health` and `/auth/login`.
 
+- Sign in: one HR Manager account, email + password. Passwords are stored as
+  bcrypt hashes; the seed creates the account from `HR_EMAIL` / `HR_PASSWORD`
+  environment variables, so a real deployment sets its own credentials and
+  nothing secret is committed.
+- Sessions: JWT signed with `JWT_SECRET` from env, 12 hour expiry. The UI
+  keeps the token in localStorage and sends it as a Bearer header.
+- Login errors use one generic message and run a dummy bcrypt comparison for
+  unknown emails, so responses do not reveal which accounts exist.
+- Mutations are validated DTOs (`whitelist: true` strips unknown fields), and
+  the salary change runs in a transaction with a conditional close so two
+  simultaneous raises cannot both win (see the race test).
 - All database access is parameterized (Prisma, or static SQL for analytics).
-- DTO validation on every mutating endpoint; unknown fields stripped.
-- helmet security headers on all responses.
-- Rate limiting (300 req/min per client) via @nestjs/throttler.
-- CORS restricted to the web app's origin.
-- No secrets in the repo; database URL and ports come from env vars.
+- helmet security headers, 300 req/min rate limiting, CORS restricted to the
+  web origin.
+- Deliberately not built: SSO, multiple roles, row level permissions. One
+  persona means one role; see docs/requirements.md.
 
 ## Testing
 
