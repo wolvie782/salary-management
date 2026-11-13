@@ -1,0 +1,85 @@
+// Seed script: loads the deterministic dataset from src/seeding/generator.ts
+// into SQLite. Usage: npm run seed -w server
+import { PrismaClient } from '@prisma/client';
+import { generateDataset } from '../src/seeding/generator';
+
+const prisma = new PrismaClient();
+const CHUNK = 1000;
+
+async function main() {
+  const startedAt = Date.now();
+  const dataset = generateDataset(10_000, 42);
+
+  console.log('Clearing existing data...');
+  await prisma.salaryRecord.deleteMany();
+  await prisma.employee.deleteMany();
+  await prisma.department.deleteMany();
+  await prisma.fxRate.deleteMany();
+  // Reset autoincrement so employee codes and ids stay aligned across reseeds.
+  await prisma.$executeRawUnsafe("DELETE FROM sqlite_sequence");
+
+  await prisma.department.createMany({
+    data: dataset.departments.map((name) => ({ name })),
+  });
+  const departments = await prisma.department.findMany();
+  const departmentId = new Map(departments.map((d) => [d.name, d.id]));
+
+  await prisma.fxRate.createMany({
+    data: dataset.fxRates.map((r) => ({
+      currency: r.currency,
+      usdPerUnit: r.usdPerUnit,
+      asOf: r.asOf,
+    })),
+  });
+
+  console.log(`Inserting ${dataset.employees.length} employees...`);
+  for (let i = 0; i < dataset.employees.length; i += CHUNK) {
+    const slice = dataset.employees.slice(i, i + CHUNK);
+    await prisma.employee.createMany({
+      data: slice.map((e) => ({
+        employeeCode: e.employeeCode,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        email: e.email,
+        jobTitle: e.jobTitle,
+        employmentType: e.employmentType,
+        status: e.status,
+        country: e.country,
+        currency: e.currency,
+        hireDate: e.hireDate,
+        departmentId: departmentId.get(e.department)!,
+      })),
+    });
+  }
+
+  const employeeRows = await prisma.employee.findMany({
+    select: { id: true, employeeCode: true },
+  });
+  const idByCode = new Map(employeeRows.map((e) => [e.employeeCode, e.id]));
+
+  const salaryRows = dataset.employees.flatMap((e) =>
+    e.salaries.map((s) => ({
+      employeeId: idByCode.get(e.employeeCode)!,
+      amount: s.amount,
+      currency: s.currency,
+      effectiveFrom: s.effectiveFrom,
+      effectiveTo: s.effectiveTo,
+      reason: s.reason,
+    })),
+  );
+
+  console.log(`Inserting ${salaryRows.length} salary records...`);
+  for (let i = 0; i < salaryRows.length; i += CHUNK) {
+    await prisma.salaryRecord.createMany({ data: salaryRows.slice(i, i + CHUNK) });
+  }
+
+  const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+  console.log(`Seed complete in ${seconds}s: 10 departments, ${dataset.employees.length} employees, ${salaryRows.length} salary records, ${dataset.fxRates.length} FX rates.`);
+}
+
+main()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
