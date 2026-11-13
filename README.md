@@ -26,15 +26,15 @@ multi-country organization and answer questions about how the org pays people.
 
 Requires Node.js 20+ and Docker (for the local Postgres; one command).
 
+Run every command below from the repo root:
+
 ```bash
 npm install
 
 # database: start Postgres, then migrate and seed 10,000 employees
 docker compose up -d db
-cd server
-cp .env.example .env
+cp server/.env.example server/.env
 npm run db:setup
-cd ..
 
 # terminal 1: API on http://localhost:3001
 npm run dev:server

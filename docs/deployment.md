@@ -31,15 +31,16 @@ https://neon.com/faqs/free-plan-limits-and-quotas.
 
 On your own machine, with this repo cloned:
 
+Run these from the repo root:
+
 ```bash
-cd server
-cp .env.example .env      # then set DATABASE_URL in .env to the Neon pooled string
 npm install
-npm run db:setup          # prisma migrate deploy + seed of 10,000 employees
+cp server/.env.example server/.env   # then set DATABASE_URL in server/.env to the Neon pooled string
+npm run db:setup                     # generates the Prisma client, migrates and seeds 10,000 employees
 ```
 
-Set `HR_EMAIL`, `HR_PASSWORD` and `JWT_SECRET` in `.env` before this step if
-you want your own credentials instead of the demo defaults.
+Set `HR_EMAIL`, `HR_PASSWORD` and `JWT_SECRET` in `server/.env` before this
+step if you want your own credentials instead of the demo defaults.
 
 ## 3. Vercel project: API
 
