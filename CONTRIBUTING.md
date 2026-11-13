@@ -74,7 +74,7 @@ docs/tradeoffs.md first.
 - `npm test -w server` - unit + integration + e2e (33 tests).
 - `node scripts/smoke.mjs` - full boot, auth flow, seeded counts.
 - `npm run build` - both workspaces must build clean.
-- CI runs all of the above on every push (.github/workflows/ci.yml).
+- A ready-to-use CI workflow that runs all of the above on every push lives at docs/ci-workflow.example.yml. To enable it, copy it to .github/workflows/ci.yml (it is kept in docs because the token used for the initial push did not include the workflow permission).
 
 ## Design docs
 
