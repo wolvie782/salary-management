@@ -15,6 +15,7 @@ multi-country organization and answer questions about how the org pays people.
 
 ## Docs
 
+- [docs/walkthrough.md](docs/walkthrough.md) - plain language tour of the architecture and flows
 - [docs/requirements.md](docs/requirements.md) - scope and deliberate exclusions
 - [docs/architecture.md](docs/architecture.md) - shape, data model, security, tests
 - [docs/tradeoffs.md](docs/tradeoffs.md) - decisions and their costs

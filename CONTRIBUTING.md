@@ -78,6 +78,7 @@ docs/tradeoffs.md first.
 
 ## Design docs
 
+- docs/walkthrough.md - plain language architecture and flow tour
 - docs/requirements.md - scope and deliberate exclusions
 - docs/architecture.md - shape, data model, request flow, security, testing
 - docs/tradeoffs.md - every significant decision and its cost
