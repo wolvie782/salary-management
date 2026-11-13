@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "prisma generate && nest build",
-    "db:setup": "prisma migrate deploy && ts-node prisma/seed.ts",
+    "db:setup": "prisma generate && prisma migrate deploy && ts-node prisma/seed.ts",
+    "postinstall": "prisma generate",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "seed": "ts-node prisma/seed.ts",
