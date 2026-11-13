@@ -1,0 +1,64 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  employees Employee[]
+}
+
+model Employee {
+  id             Int            @id @default(autoincrement())
+  employeeCode   String         @unique
+  firstName      String
+  lastName       String
+  email          String         @unique
+  jobTitle       String
+  employmentType String // FULL_TIME | PART_TIME | CONTRACT
+  status         String // ACTIVE | ON_LEAVE | INACTIVE
+  country        String // ISO 3166-1 alpha-2
+  currency       String // ISO 4217, matches the employee's local pay currency
+  hireDate       DateTime
+  departmentId   Int
+  department     Department     @relation(fields: [departmentId], references: [id])
+  salaries       SalaryRecord[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([departmentId])
+  @@index([country])
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+// Compensation history. Rows are never updated in place: a change closes the
+// current row (sets effectiveTo) and inserts a new one.
+model SalaryRecord {
+  id            Int       @id @default(autoincrement())
+  employeeId    Int
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  amount        Decimal   // annual gross in major currency units
+  currency      String
+  effectiveFrom DateTime
+  effectiveTo   DateTime? // null means this is the current salary
+  reason        String // HIRE | PROMOTION | ANNUAL_REVIEW | MARKET_ADJUSTMENT | CORRECTION
+  note          String?
+  createdAt     DateTime  @default(now())
+
+  @@index([employeeId, effectiveFrom])
+  @@index([effectiveTo])
+}
+
+// Static FX snapshot used to normalize analytics to USD. Snapshot date is
+// documented in docs/tradeoffs.md; swapping in a live feed touches one file.
+model FxRate {
+  currency   String   @id
+  usdPerUnit Decimal
+  asOf       DateTime
+}
