@@ -34,7 +34,7 @@ npm install
 # database: start Postgres, then migrate and seed 10,000 employees
 docker compose up -d db
 cp server/.env.example server/.env
-npm run db:setup
+npm run db:setup   # wipes and reloads the demo dataset; safe on a fresh database
 
 # terminal 1: API on http://localhost:3001
 npm run dev:server

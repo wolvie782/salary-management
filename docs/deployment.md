@@ -42,6 +42,12 @@ npm run db:setup                     # generates the Prisma client, migrates and
 Set `HR_EMAIL`, `HR_PASSWORD` and `JWT_SECRET` in `server/.env` before this
 step if you want your own credentials instead of the demo defaults.
 
+`db:setup` deletes existing rows and reloads the demo dataset, so run it once
+against the empty Neon database, not as routine maintenance. Nothing runs it
+automatically: app boot skips migration and seeding in production and on
+Vercel entirely, and in local development it only seeds a database that is
+completely empty, so restarts never touch a populated one.
+
 ## 3. Vercel project: API
 
 1. vercel.com, Add New, Project, import this repo.
