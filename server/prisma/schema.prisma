@@ -1,10 +1,13 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // native covers local development; rhel-openssl-3.0.x covers Vercel's
+  // serverless build so the same client works in both places.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 model Department {
@@ -73,4 +76,15 @@ model User {
   passwordHash String
   role         String   @default("HR_MANAGER")
   createdAt    DateTime @default(now())
+}
+
+// Rate limiting counters, shared by every running instance through the
+// database, so the login throttle holds on serverless deployments too.
+model ThrottleRecord {
+  key          String    @id
+  totalHits    Int
+  expiresAt    DateTime
+  blockedUntil DateTime?
+
+  @@index([expiresAt])
 }

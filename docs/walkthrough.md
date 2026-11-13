@@ -9,13 +9,13 @@ interview; every claim here matches the code.
 | Piece | Technology | Why |
 | --- | --- | --- |
 | API framework | NestJS (Node + TypeScript) | Structured modules, dependency injection, decorators for validation and guards. Matches the role's stack and keeps a growing API organized. |
-| ORM | Prisma | Type safe database access, migrations as code, and a one line switch from SQLite to Postgres later. |
-| Database | SQLite | Zero infrastructure for a reviewer to run. A file is the whole database. Limits and the Postgres path are in docs/tradeoffs.md. |
+| ORM | Prisma | Type safe database access and migrations as code. The same client talks to a local Postgres in development and Neon in production. |
+| Database | PostgreSQL | A real client-server database: concurrent writes, proper constraints, and the same engine in dev, tests and production. Locally it runs in Docker (docker compose up -d db); hosted it runs on Neon. |
 | UI framework | Next.js (React) | The role's UI stack; file based routing, server and client components. |
 | Styling | Tailwind CSS | Utility classes keep the UI consistent without a separate stylesheet architecture. |
 | Charts | Recharts | React native charting for the dashboard. |
 | Auth | JWT + bcrypt | Passwords are never stored, only bcrypt hashes; the API issues a signed token (12h) that the UI sends on every request. |
-| Tests | Jest + supertest | Fast unit tests for logic, integration tests against a throwaway SQLite file, and HTTP level tests for auth and error behavior. |
+| Tests | Jest + supertest | Fast unit tests for logic, integration tests against isolated throwaway Postgres schemas, and HTTP level tests for auth and error behavior. |
 
 ## The big picture
 
@@ -29,7 +29,7 @@ flowchart LR
     G -->|valid token| V[Validation pipe]
     V -->|bad input| E[400 field errors]
     V -->|valid input| S[Feature service]
-    S --> DB[(SQLite via Prisma)]
+    S --> DB[(Postgres via Prisma)]
     S -. any failure .-> F[Global error filter]
     F -->|safe message| C
 ```
@@ -122,7 +122,6 @@ there, because exclusions are where product thinking shows.
 ## Honest limits
 
 Tested with the brief's target: 10,000 employees, 38,804 salary records.
-Not load tested under concurrent traffic. SQLite serves one writer at a
-time, which is fine for an HR team tool and the documented reason the
-Postgres path exists. The free tier deployment (docs/deployment.md) resets
-data on idle and is meant for review, not real HR data.
+Not load tested under concurrent traffic. The free tier deployment
+(docs/deployment.md) sleeps when idle, so the first request after a quiet
+period waits a few seconds; it is meant for review, not real HR data.

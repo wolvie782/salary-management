@@ -18,7 +18,7 @@ export async function loadDataset(prisma: PrismaClient, log = console.log) {
   await prisma.department.deleteMany();
   await prisma.fxRate.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.$executeRawUnsafe('DELETE FROM sqlite_sequence');
+  await prisma.throttleRecord.deleteMany();
 
   await prisma.department.createMany({
     data: dataset.departments.map((name) => ({ name })),

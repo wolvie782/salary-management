@@ -29,9 +29,9 @@ export class AnalyticsService {
   ): string {
     return `
       ${select}
-      FROM SalaryRecord s
-      JOIN Employee e ON e.id = s.employeeId
-      JOIN FxRate f ON f.currency = s.currency
+      FROM "SalaryRecord" s
+      JOIN "Employee" e ON e.id = s."employeeId"
+      JOIN "FxRate" f ON f.currency = s.currency
       ${opts.extraJoins ?? ''}
       WHERE ${opts.where}
       ${opts.tail ?? ''}`;
@@ -45,7 +45,7 @@ export class AnalyticsService {
     const perCurrency = await this.prisma.$queryRawUnsafe<CurrencyRow[]>(
       this.currentSalarySql(
         'SELECT s.currency AS currency, COUNT(*) AS headcount, SUM(CAST(s.amount AS REAL)) AS total_local',
-        { where: "s.effectiveTo IS NULL AND e.status != 'INACTIVE'", tail: 'GROUP BY s.currency' },
+        { where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`, tail: 'GROUP BY s.currency' },
       ),
     );
 
@@ -76,11 +76,11 @@ export class AnalyticsService {
     >(
       this.currentSalarySql(
         `SELECT d.name AS department, COUNT(*) AS headcount,
-                SUM(CAST(s.amount AS REAL) * CAST(f.usdPerUnit AS REAL)) AS total_usd,
-                AVG(CAST(s.amount AS REAL) * CAST(f.usdPerUnit AS REAL)) AS avg_usd`,
+                SUM(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS total_usd,
+                AVG(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS avg_usd`,
         {
           extraJoins: 'JOIN Department d ON d.id = e.departmentId',
-          where: "s.effectiveTo IS NULL AND e.status != 'INACTIVE'",
+          where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`,
           tail: 'GROUP BY d.name ORDER BY total_usd DESC',
         },
       ),
@@ -100,9 +100,9 @@ export class AnalyticsService {
       this.currentSalarySql(
         `SELECT e.country AS country, s.currency AS currency, COUNT(*) AS headcount,
                 AVG(CAST(s.amount AS REAL)) AS avg_local,
-                AVG(CAST(s.amount AS REAL) * CAST(f.usdPerUnit AS REAL)) AS avg_usd`,
+                AVG(CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL)) AS avg_usd`,
         {
-          where: "s.effectiveTo IS NULL AND e.status != 'INACTIVE'",
+          where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`,
           tail: 'GROUP BY e.country ORDER BY headcount DESC',
         },
       ),
@@ -139,11 +139,11 @@ export class AnalyticsService {
       }[]
     >(
       this.currentSalarySql(
-        `SELECT e.id, e.firstName, e.lastName, e.jobTitle, e.country,
+        `SELECT e.id, e."firstName", e."lastName", e."jobTitle", e.country,
                 CAST(s.amount AS REAL) AS amount, s.currency,
-                CAST(s.amount AS REAL) * CAST(f.usdPerUnit AS REAL) AS usd`,
+                CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL) AS usd`,
         {
-          where: "s.effectiveTo IS NULL AND e.status != 'INACTIVE'",
+          where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`,
           tail: `ORDER BY usd DESC LIMIT ${Math.min(Math.max(1, limit), 100)}`,
         },
       ),
@@ -162,8 +162,8 @@ export class AnalyticsService {
   private async currentUsdValues(): Promise<number[]> {
     const rows = await this.prisma.$queryRawUnsafe<{ usd: number }[]>(
       this.currentSalarySql(
-        'SELECT CAST(s.amount AS REAL) * CAST(f.usdPerUnit AS REAL) AS usd',
-        { where: "s.effectiveTo IS NULL AND e.status != 'INACTIVE'", tail: 'ORDER BY usd' },
+        'SELECT CAST(s.amount AS REAL) * CAST(f."usdPerUnit" AS REAL) AS usd',
+        { where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`, tail: 'ORDER BY usd' },
       ),
     );
     return rows.map((r) => r.usd);

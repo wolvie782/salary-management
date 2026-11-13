@@ -9,7 +9,7 @@ multi-country organization and answer questions about how the org pays people.
 - Dashboard: payroll by department, average salary by country, distribution,
   top earners, all normalized to USD
 - Sign in required for everything: one HR account, bcrypt + JWT
-- NestJS + Prisma + SQLite API, Next.js + Tailwind + Recharts UI
+- NestJS + Prisma + PostgreSQL API, Next.js + Tailwind + Recharts UI
 - Fast, deterministic tests over the core salary logic, including a
   concurrency test for simultaneous raises
 
@@ -24,16 +24,16 @@ multi-country organization and answer questions about how the org pays people.
 
 ## Run it
 
-Requires Node.js 20+.
+Requires Node.js 20+ and Docker (for the local Postgres; one command).
 
 ```bash
 npm install
 
-# database: create, migrate and seed 10,000 employees
+# database: start Postgres, then migrate and seed 10,000 employees
+docker compose up -d db
 cd server
 cp .env.example .env
-npx prisma migrate dev
-npm run seed
+npm run db:setup
 cd ..
 
 # terminal 1: API on http://localhost:3001
@@ -57,17 +57,21 @@ Sign in with the local demo account `hr@acme.example` /
 - All data is synthetic. Never load real salary data into this app.
 - Two reviewers editing the same employee at once do not corrupt history:
   the second save gets a 409 and is asked to refresh.
-- Resetting the demo: the API re-migrates and reseeds the original 10,000
-  employee dataset whenever it boots against an empty database. Pointing it
-  at a fresh database (or wiping the current one) therefore restores a clean
-  slate, and it also destroys every change reviewers have made. Treat a
-  wipe as a deliberate data-deleting action, not routine maintenance.
+- Resetting the demo: in local development the API re-migrates and reseeds
+  the original 10,000 employee dataset whenever it boots against an empty
+  database, and `npm run db:setup` reruns that deliberately. Both destroy
+  every change reviewers have made, so treat them as data-deleting actions,
+  not routine maintenance.
 
-Run the tests:
+Run the tests (they use their own Postgres, like the app):
 
 ```bash
+docker compose up -d test-db
 npm test
 ```
+
+Deploy it manually on the free tier: [docs/deployment.md](docs/deployment.md)
+(Vercel for web and API, Neon for Postgres).
 
 ## API overview
 

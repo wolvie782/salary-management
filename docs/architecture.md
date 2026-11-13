@@ -9,7 +9,7 @@ flowchart LR
     end
     subgraph Server
         API[NestJS API]
-        DB[(SQLite via Prisma)]
+        DB[(Postgres via Prisma)]
     end
     UI -->|REST, JSON| API
     API --> DB
@@ -17,7 +17,8 @@ flowchart LR
 
 Two deployable units in one npm-workspaces monorepo:
 
-- `server/` - NestJS (Node + TypeScript) REST API. Prisma ORM over SQLite.
+- `server/` - NestJS (Node + TypeScript) REST API. Prisma ORM over
+  PostgreSQL (local Docker in dev, Neon in the hosted demo).
   Modules: `employees` (directory, profiles, salary changes), `analytics`
   (pay questions), `meta` (filter options), `prisma` (shared client).
 - `web/` - Next.js (React + TypeScript) UI. The dashboard and employee pages
@@ -92,7 +93,9 @@ requires a JWT on every route except `/health` and `/auth/login`.
   simultaneous raises cannot both win (see the race test).
 - All database access is parameterized (Prisma, or static SQL for analytics).
 - helmet security headers, 300 req/min global rate limiting with a stricter
-  10 req/min limit on login, CORS restricted to the web origin.
+  10 req/min limit on login, CORS restricted to the web origin. Rate limit
+  counters live in Postgres (ThrottleRecord table), so the limits hold
+  across every running instance, including serverless function instances.
 - JWTs are signed with JWT_SECRET; the API refuses to boot in production
   without it, so a deployment can never silently use the public dev default.
 - Deliberately not built: SSO, multiple roles, row level permissions. One
@@ -108,8 +111,10 @@ requires a JWT on every route except `/health` and `/auth/login`.
 - `src/seeding/generator.spec.ts` - dataset determinism and invariants
   (exactly one open salary record per employee, ordered history).
 - `src/employees/employees.service.spec.ts` - integration tests against a
-  throwaway SQLite file: pagination, search, filters, employee creation,
-  and the salary-change transaction (history preserved, single open record).
+  freshly dropped Postgres schema: pagination, search, filters, employee
+  creation, and the salary-change transaction (history preserved, single
+  open record).
 
-All tests are deterministic: the dataset comes from a seeded PRNG and the
-integration DB is a temp file, so runs are fast (~3s) and repeatable.
+All tests are deterministic: the dataset comes from a seeded PRNG and each
+suite gets its own freshly dropped schema in a shared local Postgres
+(docker compose up -d test-db), so runs are fast and repeatable.

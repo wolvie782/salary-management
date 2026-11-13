@@ -43,6 +43,18 @@ close).
 8. Verify the UI by actually rendering it and looking at screenshots, not
    by trusting that the build passed.
 
+## Later session: deployment preparation
+
+A follow-up session prepared the app for a free tier deployment the engineer
+chose to run manually (Vercel for web and API, Neon for Postgres). The
+assistant audited the code for SQLite-only assumptions and found three real
+ones (raw SQL identifier quoting, case-insensitive search behavior, a
+SQLite-only catalog table in the seed), switched the project to PostgreSQL
+for every environment, moved rate limit counters into Postgres so the login
+throttle holds across serverless instances, and reran the full test suite
+and smoke test against a real Postgres before committing. Hosting accounts
+and the deploy itself are the engineer's, by his choice.
+
 ## Why this way
 
 The brief cares about judgment, not typing speed. Using AI for volume work

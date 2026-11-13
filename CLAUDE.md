@@ -6,7 +6,7 @@ AGENTS.md first, then the docs page for the area you are touching.
 
 ## Architecture in one minute
 
-- npm workspaces monorepo: `server/` (NestJS + Prisma + SQLite API,
+- npm workspaces monorepo: `server/` (NestJS + Prisma + PostgreSQL API,
   port 3001) and `web/` (Next.js + Tailwind + Recharts, port 3000).
 - Server modules by feature: `auth` (JWT login, global guard), `employees`
   (directory, profiles, salary changes), `analytics` (pay aggregations in
@@ -21,9 +21,11 @@ AGENTS.md first, then the docs page for the area you are touching.
 
 ## Commands
 
-`npm install` | `npm run seed -w server` | `npm run dev:server` /
-`npm run dev:web` | `npm test -w server` (33 tests) | `npm run build` |
-`node scripts/smoke.mjs` (full boot + auth flow, needs builds first)
+`npm install` | `docker compose up -d db` (local Postgres) |
+`npm run db:setup -w server` (migrate + seed) | `npm run dev:server` /
+`npm run dev:web` | `docker compose up -d test-db` then `npm test -w server`
+(33 tests) | `npm run build` |
+`node scripts/smoke.mjs` (full boot + auth flow, needs builds and test-db)
 
 ## Non negotiable rules
 

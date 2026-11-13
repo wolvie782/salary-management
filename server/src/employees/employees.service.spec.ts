@@ -1,10 +1,25 @@
-// Integration tests for EmployeesService against a throwaway SQLite database.
+// Integration tests for EmployeesService against a throwaway Postgres schema.
 // They cover the behavior HR relies on: finding people, and recording salary
-// changes without losing history. Fast because the dataset is tiny and local.
+// changes without losing history. They need a reachable Postgres; see the
+// README (docker compose up -d db) and TEST_DATABASE_URL.
 import { execSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// Each suite gets its own freshly dropped schema in the test database, so
+// suites stay isolated and can run in parallel workers without colliding.
+async function useTestSchema(schema: string) {
+  const base = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5433/salary_test';
+  const admin = new PrismaClient({ datasources: { db: { url: base } } });
+  await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+  await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+  await admin.$disconnect();
+  process.env.DATABASE_URL = `${base}?schema=${schema}`;
+  execSync('npx prisma db push --skip-generate', {
+    cwd: join(__dirname, '..', '..'),
+    env: { ...process.env },
+    stdio: 'ignore',
+  });
+}
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { generateDataset } from '../seeding/generator';
@@ -12,19 +27,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmployeesService } from './employees.service';
 
 describe('EmployeesService', () => {
-  let dir: string;
   let prisma: PrismaClient;
   let service: EmployeesService;
   let engineeringId: number;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'salary-test-'));
-    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
-    execSync('npx prisma db push --skip-generate', {
-      cwd: join(__dirname, '..', '..'),
-      env: { ...process.env },
-      stdio: 'ignore',
-    });
+    await useTestSchema('employees');
 
     prisma = new PrismaService();
     service = new EmployeesService(prisma as PrismaService);
@@ -67,7 +75,6 @@ describe('EmployeesService', () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
-    rmSync(dir, { recursive: true, force: true });
   });
 
   it('paginates the directory', async () => {
@@ -175,19 +182,12 @@ describe('EmployeesService', () => {
 });
 
 describe('EmployeesService invariants under stress', () => {
-  let dir: string;
   let prisma: PrismaClient;
   let service: EmployeesService;
   let employeeId: number;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'salary-race-'));
-    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
-    execSync('npx prisma db push --skip-generate', {
-      cwd: join(__dirname, '..', '..'),
-      env: { ...process.env },
-      stdio: 'ignore',
-    });
+    await useTestSchema('employees_race');
     prisma = new PrismaClient();
     service = new EmployeesService(prisma as PrismaService);
     const dept = await prisma.department.create({ data: { name: 'Engineering' } });
@@ -219,7 +219,6 @@ describe('EmployeesService invariants under stress', () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
-    rmSync(dir, { recursive: true, force: true });
   });
 
   it('keeps exactly one open record when two changes race with the same date', async () => {

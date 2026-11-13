@@ -1,7 +1,5 @@
 // End to end proof that salary data and mutations sit behind sign in.
 import { execSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -11,13 +9,18 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
 describe('Auth (e2e)', () => {
-  let dir: string;
   let app: INestApplication;
   let prisma: PrismaClient;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'salary-auth-'));
-    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
+    // Isolated, freshly dropped schema in the shared test database; see
+    // the README for the local Postgres setup.
+    const base = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5433/salary_test';
+    const admin = new PrismaClient({ datasources: { db: { url: base } } });
+    await admin.$executeRawUnsafe('DROP SCHEMA IF EXISTS "auth_e2e" CASCADE');
+    await admin.$executeRawUnsafe('CREATE SCHEMA "auth_e2e"');
+    await admin.$disconnect();
+    process.env.DATABASE_URL = `${base}?schema=auth_e2e`;
     execSync('npx prisma db push --skip-generate', {
       cwd: join(__dirname, '..'),
       env: { ...process.env },
@@ -42,7 +45,6 @@ describe('Auth (e2e)', () => {
   afterAll(async () => {
     await app.close();
     await prisma.$disconnect();
-    rmSync(dir, { recursive: true, force: true });
   });
 
   it('health check is public', () => {
@@ -114,13 +116,16 @@ describe('Auth (e2e)', () => {
 });
 
 describe('Error handling (e2e)', () => {
-  let dir: string;
   let app: INestApplication;
   let token: string;
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'salary-errors-'));
-    process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
+    const base = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5433/salary_test';
+    const admin = new PrismaClient({ datasources: { db: { url: base } } });
+    await admin.$executeRawUnsafe('DROP SCHEMA IF EXISTS "errors_e2e" CASCADE');
+    await admin.$executeRawUnsafe('CREATE SCHEMA "errors_e2e"');
+    await admin.$disconnect();
+    process.env.DATABASE_URL = `${base}?schema=errors_e2e`;
     execSync('npx prisma db push --skip-generate', {
       cwd: join(__dirname, '..'),
       env: { ...process.env },
@@ -149,7 +154,6 @@ describe('Error handling (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    rmSync(dir, { recursive: true, force: true });
   });
 
   it('returns field level 400s for invalid input, no stack traces', async () => {

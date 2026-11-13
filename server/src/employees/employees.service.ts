@@ -30,10 +30,10 @@ export class EmployeesService {
     const where: Prisma.EmployeeWhereInput = {};
     if (search) {
       where.OR = [
-        { firstName: { contains: search } },
-        { lastName: { contains: search } },
-        { email: { contains: search } },
-        { employeeCode: { contains: search } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { employeeCode: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (department) where.department = { name: department };
@@ -194,10 +194,10 @@ export class EmployeesService {
       if (err instanceof BadRequestException || err instanceof ConflictException) {
         throw err;
       }
-      // SQLite reports a losing concurrent writer as a lock error; surface it
-      // as a retryable conflict rather than a 500.
+      // Postgres reports a losing concurrent writer as a serialization
+      // failure; surface it as a retryable conflict rather than a 500.
       const message = err instanceof Error ? err.message : '';
-      if (message.includes('locked') || message.includes('P2034')) {
+      if (message.includes('P2034')) {
         throw new ConflictException(
           'Another salary change was recorded at the same time; refresh and retry',
         );

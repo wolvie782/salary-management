@@ -55,7 +55,7 @@ salary-management/
 - Money: Prisma `Decimal` columns; convert FX via the `FxRate` snapshot
   table; round only at display time.
 - Tests: `*.spec.ts` next to the code, deterministic (no wall clock, seeded
-  PRNG). Integration tests use throwaway SQLite files.
+  PRNG). Integration tests use freshly dropped schemas in a shared local Postgres (docker compose up -d test-db).
 
 ## The rules that keep the data correct
 

@@ -1,13 +1,15 @@
 # Trade-offs and decisions
 
-## SQLite for the assessment, Postgres-shaped for production
+## PostgreSQL everywhere
 
-SQLite keeps the project zero-infrastructure to run and review, and Prisma
-keeps the door open to Postgres by changing the datasource URL. The costs:
-no enum columns (handled with validated string fields), no partial indexes,
-and write concurrency that would not survive a real multi-user deployment.
-For a single-team HR tool at 10k rows, the query patterns here are well
-within SQLite's comfort zone.
+The first version used SQLite so a reviewer could run the app with zero
+infrastructure. Preparing the Vercel deployment surfaced real differences
+(raw SQL identifier quoting, case-insensitive search, SQLite-only catalog
+tables), so the project now standardizes on Postgres for development, tests
+and production: one engine, one set of semantics, no surprises between a
+local run and the hosted demo. The cost is one extra local step,
+`docker compose up -d db`, documented in the README. Enums stay as
+validated string fields to keep the schema simple at this size.
 
 ## Decimal amounts, not floats, not integer minor units
 

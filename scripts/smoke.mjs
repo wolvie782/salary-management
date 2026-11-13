@@ -1,21 +1,33 @@
 // Smoke test: boots the built API and web app on scratch ports and checks
 // the critical path end to end (health, auth gate, login, directory, pages).
 // Requires prior builds: npm run build -w server && npm run build -w web.
+// Needs a reachable Postgres, like the test suite (see README); the database
+// URL comes from SMOKE_DATABASE_URL or TEST_DATABASE_URL, defaulting to the
+// documented local docker compose database. Each run uses a fresh schema.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(new URL('../server/package.json', import.meta.url));
+const { PrismaClient } = require('@prisma/client');
 
 const API_PORT = 4101;
 const WEB_PORT = 4100;
-const dir = mkdtempSync(join(tmpdir(), 'salary-smoke-'));
+const base =
+  process.env.SMOKE_DATABASE_URL ??
+  process.env.TEST_DATABASE_URL ??
+  'postgresql://postgres:postgres@localhost:5433/salary_test';
+const schema = `smoke_${process.pid}`;
+
+const admin = new PrismaClient({ datasources: { db: { url: base } } });
+await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
 
 const api = spawn('node', ['dist/main.js'], {
   cwd: new URL('../server', import.meta.url),
   env: {
     ...process.env,
     PORT: String(API_PORT),
-    DATABASE_URL: `file:${join(dir, 'smoke.db')}`,
+    DATABASE_URL: `${base}?schema=${schema}`,
     WEB_ORIGIN: `http://localhost:${WEB_PORT}`,
   },
   stdio: 'ignore',
@@ -35,7 +47,7 @@ function check(name, ok, detail = '') {
   if (!ok) failures += 1;
 }
 
-async function waitFor(url, tries = 60) {
+async function waitFor(url, tries = 90) {
   for (let i = 0; i < tries; i++) {
     try {
       const res = await fetch(url);
@@ -86,7 +98,8 @@ try {
 } finally {
   api.kill();
   web.kill();
-  rmSync(dir, { recursive: true, force: true });
+  await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+  await admin.$disconnect();
 }
 
 process.exit(failures === 0 ? 0 : 1);

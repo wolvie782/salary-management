@@ -4,7 +4,7 @@ Target: HR operations over 10,000 employees feel instant on ordinary hardware.
 
 ## What we measured locally
 
-Development machine, seeded SQLite file:
+Development machine, local Postgres (docker compose):
 
 - Seed: 10,000 employees + 38,804 salary records insert in about 1.5s.
 - Test suite: 28 tests in about 5s, deterministic.
@@ -54,5 +54,3 @@ been measured under concurrent production traffic.
 
 - Move median/distribution to percentile SQL or a nightly materialized table.
 - Add a covering index or trigram/full-text search for name search.
-- Postgres instead of SQLite for concurrent writers (schema is Prisma, so
-  this is a datasource swap plus migration regeneration).

@@ -7,17 +7,20 @@ this repo works and which rules must stay intact. docs/ has the long form.
 
 Salary management software for the HR manager of a 10,000 person,
 multi-country organization (ACME, fictional; all data synthetic). Built as an
-engineering assessment. NestJS + Prisma + SQLite API in `server/`, Next.js +
+engineering assessment. NestJS + Prisma + PostgreSQL API in `server/`, Next.js +
 Tailwind + Recharts UI in `web/`, npm workspaces monorepo.
 
 ## Commands
 
 - `npm install` - install everything (root installs both workspaces)
-- `npm run seed -w server` - reset the database to the deterministic dataset
+- `docker compose up -d db` - start the local Postgres the app uses
+- `npm run db:setup -w server` - migrate and reset to the deterministic dataset
 - `npm run dev:server` / `npm run dev:web` - run API (3001) and UI (3000)
-- `npm test -w server` - 33 fast, deterministic tests
+- `docker compose up -d test-db` then `npm test -w server` - 33 deterministic
+  tests against isolated schemas in the test database
 - `npm run build -w server && npm run build -w web` - production builds
 - `node scripts/smoke.mjs` - boots built apps, checks the auth flow end to end
+  (needs the test database running)
 
 ## Invariants that must not break
 
