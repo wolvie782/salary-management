@@ -97,6 +97,10 @@ requires a JWT on every route except `/health` and `/auth/login`.
   without it, so a deployment can never silently use the public dev default.
 - Deliberately not built: SSO, multiple roles, row level permissions. One
   persona means one role; see docs/requirements.md.
+- Shared demo identity: every reviewer signs in as the same account and can
+  mutate the same dataset with no per-person attribution. That is a demo
+  limitation, not a security model; the README covers it and the reseed
+  path for restoring a clean dataset.
 
 ## Testing
 

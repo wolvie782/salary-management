@@ -48,6 +48,21 @@ Sign in with the local demo account `hr@acme.example` /
 `acme-demo-password` (set your own via `HR_EMAIL` / `HR_PASSWORD` /
 `JWT_SECRET` in any real deployment).
 
+## Demo data and the shared login
+
+- Every reviewer signs in as the same `hr@acme.example` identity. Anyone
+  with the credentials can change the same dataset, and changes are not
+  attributed to a person. This is deliberate for review; it is not a
+  multi-user security model.
+- All data is synthetic. Never load real salary data into this app.
+- Two reviewers editing the same employee at once do not corrupt history:
+  the second save gets a 409 and is asked to refresh.
+- Resetting the demo: the API re-migrates and reseeds the original 10,000
+  employee dataset whenever it boots against an empty database. Pointing it
+  at a fresh database (or wiping the current one) therefore restores a clean
+  slate, and it also destroys every change reviewers have made. Treat a
+  wipe as a deliberate data-deleting action, not routine maintenance.
+
 Run the tests:
 
 ```bash
