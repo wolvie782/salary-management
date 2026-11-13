@@ -200,7 +200,7 @@ export function generateDataset(employeeCount = 10_000, seed = 42): GeneratedDat
     const titleSuffix = 'titleSuffix' in level ? level.titleSuffix : '';
     const jobTitle =
       level.name === 'Manager'
-        ? `${department.role} Manager`
+        ? `${department.name} Manager`
         : level.name === 'Director' || level.name === 'VP'
           ? `${titlePrefix}${department.name}`
           : `${titlePrefix}${department.role}${titleSuffix}`;

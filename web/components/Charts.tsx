@@ -27,7 +27,7 @@ export function DepartmentChart({
             name === 'totalUsd' ? [formatUsdCompact(value), 'Annual payroll'] : [value, name]
           }
         />
-        <Bar dataKey="totalUsd" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="totalUsd" fill="#4f46e5" radius={[4, 4, 0, 0]} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -49,7 +49,7 @@ export function CountryChart({
             name === 'averageUsd' ? [formatUsdCompact(value), 'Average salary (USD)'] : [value, name]
           }
         />
-        <Bar dataKey="averageUsd" fill="#0d9488" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="averageUsd" fill="#0d9488" radius={[4, 4, 0, 0]} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -67,7 +67,7 @@ export function DistributionChart({
         <XAxis dataKey="label" angle={-45} textAnchor="end" interval={0} fontSize={11} />
         <YAxis fontSize={12} width={48} />
         <Tooltip formatter={(value: number) => [value, 'Employees']} />
-        <Bar dataKey="count" fill="#d97706" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" fill="#d97706" radius={[4, 4, 0, 0]} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );
