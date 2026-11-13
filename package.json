@@ -1,0 +1,20 @@
+{
+  "name": "salary-management",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Employee salary management software for a 10,000 person organization",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm run start:dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w server && npm run build -w web",
+    "seed": "npm run seed -w server",
+    "test": "npm test -w server"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
