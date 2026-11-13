@@ -13,6 +13,7 @@ export async function loadDataset(prisma: PrismaClient, log = console.log) {
   const dataset = generateDataset(10_000, 42);
 
   log('Clearing existing data...');
+  await prisma.auditLog.deleteMany();
   await prisma.salaryRecord.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.department.deleteMany();
