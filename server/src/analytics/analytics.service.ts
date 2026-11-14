@@ -38,16 +38,23 @@ export class AnalyticsService {
   }
 
   async overview() {
-    const fx = await this.fxTable();
-    const headcount = await this.prisma.employee.count();
-    const activeCount = await this.prisma.employee.count({ where: { status: 'ACTIVE' } });
-
-    const perCurrency = await this.prisma.$queryRawUnsafe<CurrencyRow[]>(
-      this.currentSalarySql(
-        'SELECT s.currency AS currency, COUNT(*) AS headcount, SUM(CAST(s.amount AS REAL)) AS total_local',
-        { where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`, tail: 'GROUP BY s.currency' },
+    // These six reads are independent: run them concurrently so the request
+    // pays one network round trip to the database instead of six sequential
+    // ones. This matters on the hosted demo, where function and database can
+    // be regions apart and each round trip costs hundreds of milliseconds.
+    const [fx, headcount, activeCount, perCurrency, usdValues, fxSnapshot] = await Promise.all([
+      this.fxTable(),
+      this.prisma.employee.count(),
+      this.prisma.employee.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.$queryRawUnsafe<CurrencyRow[]>(
+        this.currentSalarySql(
+          'SELECT s.currency AS currency, COUNT(*) AS headcount, SUM(CAST(s.amount AS REAL)) AS total_local',
+          { where: `s."effectiveTo" IS NULL AND e.status != 'INACTIVE'`, tail: 'GROUP BY s.currency' },
+        ),
       ),
-    );
+      this.currentUsdValues(),
+      this.prisma.fxRate.findFirst({ select: { asOf: true } }),
+    ]);
 
     let totalUsd = 0;
     let paidHeadcount = 0;
@@ -56,7 +63,6 @@ export class AnalyticsService {
       paidHeadcount += Number(row.headcount);
     }
 
-    const usdValues = await this.currentUsdValues();
     const medianUsd = median(usdValues);
 
     return {
@@ -66,7 +72,7 @@ export class AnalyticsService {
       totalAnnualPayrollUsd: Math.round(totalUsd),
       averageSalaryUsd: paidHeadcount ? Math.round(totalUsd / paidHeadcount) : 0,
       medianSalaryUsd: medianUsd === null ? null : Math.round(medianUsd),
-      fxSnapshot: (await this.prisma.fxRate.findFirst({ select: { asOf: true } }))?.asOf ?? null,
+      fxSnapshot: fxSnapshot?.asOf ?? null,
     };
   }
 

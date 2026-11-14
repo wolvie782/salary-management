@@ -8,6 +8,7 @@ import { formatMoney, countryName, avatarColor } from '../../lib/format';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Select } from '../../components/Select';
 import { getToken } from '../../lib/auth';
+import { PageLoader } from '../../components/Loader';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -286,6 +287,13 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
+            {loading && !result && (
+              <tr>
+                <td colSpan={7} className="px-5 py-4">
+                  <PageLoader label="Loading employees…" />
+                </td>
+              </tr>
+            )}
             {result?.data.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">

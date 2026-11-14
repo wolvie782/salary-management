@@ -8,6 +8,7 @@ import { formatDate, formatMoney, avatarColor, countryName } from '../../../lib/
 import { SalaryChangeForm } from './SalaryChangeForm';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { Select } from '../../../components/Select';
+import { LoadingNote } from '../../../components/Loader';
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -98,6 +99,7 @@ export default function EmployeePage() {
   if (!employee) {
     return (
       <main className="mx-auto max-w-5xl px-6 py-8">
+        <LoadingNote label="Loading employee…" />
         <div className="h-28 rounded-xl border border-slate-200 bg-white animate-pulse mb-4" />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="h-40 rounded-xl border border-slate-200 bg-white animate-pulse" />

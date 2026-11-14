@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api, Overview } from '../lib/api';
 import { formatDate, formatMoney, formatUsdCompact, countryName, avatarColor } from '../lib/format';
 import { CountryChart, DepartmentChart, DistributionChart } from '../components/Charts';
+import { LoadingNote } from '../components/Loader';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function Dashboard() {
   if (!overview) {
     return (
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+        <LoadingNote label="Loading live compensation data…" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-28 rounded-xl border border-slate-200 bg-white animate-pulse" />

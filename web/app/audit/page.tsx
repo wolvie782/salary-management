@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, AuditLogEntry } from '../../lib/api';
 import { Select } from '../../components/Select';
+import { LoadingNote } from '../../components/Loader';
 
 const ACTION_META: Record<string, { label: string; color: string; icon: JSX.Element }> = {
   EMPLOYEE_CREATED: {
@@ -145,6 +146,7 @@ export default function AuditPage() {
 
       {loading ? (
         <div className="space-y-3">
+          <LoadingNote label="Loading audit log…" />
           {[...Array(8)].map((_, i) => (
             <div key={i} className="h-16 rounded-xl border border-slate-200 bg-white animate-pulse" />
           ))}
